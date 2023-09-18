@@ -30,8 +30,9 @@ app.get("/", (req, res) => {
 
 
 app.get("/download-video", (req, res) => {
-    const url = req.query.url;
-    console.log(url);
+     let url = req.query.url;
+  
+    url = "https://threadsvideodownloader.io/download?v=" + url;
 
     fetch(url)
         .then((response) => {
