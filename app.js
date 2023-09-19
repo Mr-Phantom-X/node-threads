@@ -15,7 +15,7 @@ app.use(express.urlencoded({extended:true}))
 
 app.use(cors(
   {
-    origin: ["https://node-threads.vercel.app/"],
+    origin: ["https://zzzthreads.com/"],
     methods: ["POST", "GET"],
     credentials: true
   }
