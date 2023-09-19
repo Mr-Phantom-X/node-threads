@@ -2,12 +2,16 @@ const express = require("express");
 const fetch = require('node-fetch');
 const cheerio = require('cheerio');
 const cors = require("cors");
+const ffmpeg = require("fluent-ffmpeg");
+const axios = require("axios");
 
 require("dotenv").config();
 
 const app = express();
 
 app.use(express.json());
+app.use(express.urlencoded({extended:true}))
+
 
 app.use(cors(
   {
@@ -83,6 +87,37 @@ app.get("/download-video", (req, res) => {
 app.get("/message", (req, res) => {
     res.send({ message: "Message from other sides" })
 })
+
+
+
+app.post("/download-mp3", async (req, res) => {
+    res.contentType("audio/mp3");
+    res.attachment("output.mp3");
+
+    const videoUrl = req.body.videoUrl;
+
+    try {
+        const response = await axios.get(videoUrl, {
+            responseType: 'stream'
+        });
+
+        ffmpeg(response.data)
+            .toFormat("mp3")
+            .on("end", () => {
+                console.log("done");
+                res.end();
+            })
+            .on("error", (err) => {
+                console.log("an error occurred" + err.message);
+                res.status(500).send(err.message);
+            })
+            .pipe(res, { end: true });
+    } catch (error) {
+        console.error(error);
+        res.status(500).send(error.message);
+    }
+});
+
 
 
 app.listen(port, () => {
