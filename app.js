@@ -97,7 +97,7 @@ app.get("/message", (req, res) => {
 
 
 app.post("/convert", async (req, res) => {
-    const videoUrl = req.body.videoUrl;
+    const videoUrl = req.body.audioUrl;
 
     try {
         const response = await axios.get(videoUrl, {
