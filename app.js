@@ -93,8 +93,9 @@ app.get("/message", (req, res) => {
 
 
 
-app.post("/download-mp3", async (req, res) => {
-    const videoUrl = req.body.videoUrl;
+app.get("/downlaod-mp3", async (req, res) => {
+    const videoUrl = req.query.videoUrl;
+
 
     try {
         const response = await axios.get(videoUrl, {
