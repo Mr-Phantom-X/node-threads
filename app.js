@@ -93,47 +93,34 @@ app.get("/message", (req, res) => {
 
 
 
-app.get("/downlaod-mp3", async (req, res) => {
-    const videoUrl = req.query.videoUrl;
-
+app.post("/convert", async (req, res) => {
+    const videoUrl = req.body.videoUrl;
 
     try {
         const response = await axios.get(videoUrl, {
-            responseType: 'stream'
+            responseType: 'arraybuffer'
         });
 
-        const writeStream = response.data;
+        const inputBuffer = Buffer.from(response.data);
 
-        writeStream.on('end', () => {
-            console.log('Video downloaded successfully');
-            let output = Date.now() + "output.mp3";
-            exec(`ffmpeg -i temp_video.mp4 ${output}`, (error, stdout, stderr) => {
-                if (error) {
-                    console.log(`Error: ${error.message}`);
-                } else {
-                    console.log("File is converted");
-                    res.download(output, (err) => {
-                        if (err) {
-                            throw err;
-                        }
-                        fs.unlinkSync(output);
-                    });
-                }
-            });
-        });
+        let output = Date.now() + "output.mp3";
+        exec(`ffmpeg -i pipe:0 -f mp3 pipe:1`, { encoding: 'binary', maxBuffer: 1024 * 1024 * 50 }, (error, stdout, stderr) => {
+            if (error) {
+                console.log(`Error: ${error.message}`);
+                res.status(500).send("Error converting video");
+            } else {
+                console.log("File is converted");
+                res.set('Content-Type', 'audio/mp3');
+                res.set('Content-Disposition', `attachment; filename=${output}`);
+                res.send(Buffer.from(stdout, 'binary'));
+            }
+        }).stdin.end(inputBuffer);
 
-        writeStream.on('error', (err) => {
-            console.error("Error downloading video:", err);
-            res.status(500).send("Error downloading video");
-        });
-
-        writeStream.pipe(fs.createWriteStream('temp_video.mp4'));
     } catch (error) {
         console.error("Error fetching video:", error);
         res.status(500).send("Error fetching video");
     }
 });
-
 
 app.listen(port, () => {
     console.log("server started " + port );
