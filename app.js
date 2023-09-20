@@ -6,6 +6,8 @@ const fs = require("fs");
 const path = require("path");
 const { exec } = require("child_process");
 const axios = require("axios");
+const ffmpeg = require("fluent-ffmpeg");
+
 
 require("dotenv").config();
 
@@ -13,6 +15,7 @@ const app = express();
 
 app.use(express.json());
 app.use(express.static("public"))
+ffmpeg.setFfmpegPath("./ffmpeg");
 
 
 
@@ -98,23 +101,19 @@ app.post("/convert", async (req, res) => {
 
     try {
         const response = await axios.get(videoUrl, {
-            responseType: 'arraybuffer'
+            responseType: 'stream'
         });
 
-        const inputBuffer = Buffer.from(response.data);
+        const ffmpegProcess = ffmpeg()
+            .input(response.data)
+            .format('mp3')
+            .outputOptions('-q:a', '0')
+            .pipe(res, {end: true});
 
-        let output = Date.now() + "output.mp3";
-        exec(`ffmpeg -i pipe:0 -f mp3 pipe:1`, { encoding: 'binary', maxBuffer: 1024 * 1024 * 50 }, (error, stdout, stderr) => {
-            if (error) {
-                console.log(`Error: ${error.message}`);
-                res.status(500).send("Error converting video");
-            } else {
-                console.log("File is converted");
-                res.set('Content-Type', 'audio/mp3');
-                res.set('Content-Disposition', `attachment; filename=${output}`);
-                res.send(Buffer.from(stdout, 'binary'));
-            }
-        }).stdin.end(inputBuffer);
+        ffmpegProcess.on('error', (err) => {
+            console.error(`Error: ${err.message}`);
+            res.status(500).send("Error converting video");
+        });
 
     } catch (error) {
         console.error("Error fetching video:", error);
