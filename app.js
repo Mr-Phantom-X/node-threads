@@ -2,7 +2,9 @@ const express = require("express");
 const fetch = require('node-fetch');
 const cheerio = require('cheerio');
 const cors = require("cors");
-const ffmpeg = require("fluent-ffmpeg");
+const fs = require("fs");
+const path = require("path");
+const { exec } = require("child_process");
 const axios = require("axios");
 
 require("dotenv").config();
@@ -10,15 +12,24 @@ require("dotenv").config();
 const app = express();
 
 app.use(express.json());
-app.use(express.urlencoded({extended:true}))
+app.use(express.static("public"))
 
+let dir = "public";
+let subdir = "public/uploads";
 
-app.use(cors({
-  origin: "*",
-  methods: ["POST", "GET"],
-  credentials: true
-}));
+if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir);
+    fs.mkdirSync(subdir);
+}
 
+app.use(cors(
+  {
+    origin: "*",
+    methods: ["POST", "GET"],
+    credentials: true
+  }
+)
+);
 
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', 'https://zzzthreads.com');
@@ -88,34 +99,48 @@ app.get("/message", (req, res) => {
 
 
 
-app.get('/download-mp3', async(req, res) => {
-    const videoUrl = req.query.url;
-    res.contentType("audio/mp3");
-    res.attachment("output.mp3");
-
+app.post("/download-mp3", async (req, res) => {
+    const videoUrl = req.body.videoUrl;
 
     try {
         const response = await axios.get(videoUrl, {
             responseType: 'stream'
         });
 
-        ffmpeg(response.data)
-            .toFormat("mp3")
-            .on("end", () => {
-                console.log("done");
-                res.end();
-            })
-            .on("error", (err) => {
-                console.log("an error occurred" + err.message);
-                res.status(500).send(err.message);
-            })
-            .pipe(res, { end: true });
+        const filePath = path.join(subdir, "temp_video.mp4");
+        const writeStream = fs.createWriteStream(filePath);
+
+        response.data.pipe(writeStream);
+
+        writeStream.on('finish', () => {
+            console.log('Video downloaded successfully');
+            let output = Date.now() + "output.mp3";
+            exec(`ffmpeg -i ${filePath} ${output}`, (error, stdout, stderr) => {
+                if (error) {
+                    console.log(`Error: ${error.message}`);
+                } else {
+                    console.log("File is converted");
+                    res.download(output, (err) => {
+                        if (err) {
+                            throw err
+                        }
+                        fs.unlinkSync(filePath);
+                        fs.unlinkSync(output);
+                    });
+                }
+            });
+        });
+
+        writeStream.on('error', (err) => {
+            console.error("Error downloading video:", err);
+            res.status(500).send("Error downloading video");
+        });
+
     } catch (error) {
-        console.error(error);
-        res.status(500).send(error.message);
+        console.error("Error fetching video:", error);
+        res.status(500).send("Error fetching video");
     }
 });
-
 
 
 app.listen(port, () => {
