@@ -14,13 +14,7 @@ const app = express();
 app.use(express.json());
 app.use(express.static("public"))
 
-let dir = "public";
-let subdir = "public/uploads";
 
-if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir);
-    fs.mkdirSync(subdir);
-}
 
 app.use(cors(
   {
