@@ -107,24 +107,20 @@ app.post("/download-mp3", async (req, res) => {
             responseType: 'stream'
         });
 
-        const filePath = path.join(subdir, "temp_video.mp4");
-        const writeStream = fs.createWriteStream(filePath);
+        const writeStream = response.data;
 
-        response.data.pipe(writeStream);
-
-        writeStream.on('finish', () => {
+        writeStream.on('end', () => {
             console.log('Video downloaded successfully');
             let output = Date.now() + "output.mp3";
-            exec(`ffmpeg -i ${filePath} ${output}`, (error, stdout, stderr) => {
+            exec(`ffmpeg -i temp_video.mp4 ${output}`, (error, stdout, stderr) => {
                 if (error) {
                     console.log(`Error: ${error.message}`);
                 } else {
                     console.log("File is converted");
                     res.download(output, (err) => {
                         if (err) {
-                            throw err
+                            throw err;
                         }
-                        fs.unlinkSync(filePath);
                         fs.unlinkSync(output);
                     });
                 }
@@ -136,6 +132,7 @@ app.post("/download-mp3", async (req, res) => {
             res.status(500).send("Error downloading video");
         });
 
+        writeStream.pipe(fs.createWriteStream('temp_video.mp4'));
     } catch (error) {
         console.error("Error fetching video:", error);
         res.status(500).send("Error fetching video");
